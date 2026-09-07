@@ -1,241 +1,160 @@
-import { Canvas, useFrame } from "@react-three/fiber";
+import { useState, useRef, Suspense, useCallback } from "react";
+import { Canvas } from "@react-three/fiber";
 import { OrbitControls, Stars } from "@react-three/drei";
-import { useRef, useState } from "react";
-import * as THREE from "three";
+import EarthGlobe from "./components/EarthGlobe";
+import Header from "./components/Header";
+import ControlPanel from "./components/ControlPanel";
+import GlobeHUD from "./components/GlobeHUD";
+import Footer from "./components/Footer";
+import { STATIONS, OCEAN_VARIABLES } from "./data/stations";
 import "./App.css";
 
-const stations = [
-  { name: "BOUY-001", lat: 15, lon: 72, temp: 28.4, salinity: 35.1, depth: 50 },
-  { name: "BOUY-002", lat: 8, lon: 80, temp: 27.8, salinity: 34.7, depth: 100 },
-  { name: "BOUY-003", lat: 20, lon: 88, temp: 29.1, salinity: 34.3, depth: 25 },
-  { name: "BOUY-004", lat: -5, lon: 75, temp: 26.9, salinity: 35.4, depth: 150 },
-];
-
-function latLonToVector3(lat, lon, radius = 2.05) {
-  const phi = (90 - lat) * (Math.PI / 180);
-  const theta = (lon + 180) * (Math.PI / 180);
-
-  return new THREE.Vector3(
-    -radius * Math.sin(phi) * Math.cos(theta),
-    radius * Math.cos(phi),
-    radius * Math.sin(phi) * Math.sin(theta)
-  );
-}
-
-function Earth({ onSelect }) {
-  const earth = useRef();
-
-  useFrame(() => {
-    earth.current.rotation.y += 0.0015;
-  });
-
+// 3D Canvas Fallback Loader
+function CanvasLoader() {
   return (
-    <group ref={earth}>
-      <mesh>
-        <sphereGeometry args={[2, 64, 64]} />
-        <meshStandardMaterial
-          color="#075985"
-          roughness={0.65}
-          metalness={0.15}
-        />
-      </mesh>
-
-      {/* Atmosphere */}
-      <mesh scale={1.04}>
-        <sphereGeometry args={[2, 64, 64]} />
-        <meshBasicMaterial
-          color="#38bdf8"
-          transparent
-          opacity={0.08}
-          side={THREE.BackSide}
-        />
-      </mesh>
-
-      {stations.map((station) => {
-        const position = latLonToVector3(station.lat, station.lon);
-
-        return (
-          <group
-            key={station.name}
-            position={position}
-            onClick={(e) => {
-              e.stopPropagation();
-              onSelect(station);
-            }}
-          >
-            <mesh>
-              <sphereGeometry args={[0.055, 16, 16]} />
-              <meshBasicMaterial color="#f59e0b" />
-            </mesh>
-
-            <mesh scale={1.8}>
-              <sphereGeometry args={[0.055, 16, 16]} />
-              <meshBasicMaterial
-                color="#fbbf24"
-                transparent
-                opacity={0.15}
-              />
-            </mesh>
-          </group>
-        );
-      })}
-
-      {/* Ocean current arrows */}
-      {[...Array(18)].map((_, i) => {
-        const angle = (i / 18) * Math.PI * 2;
-
-        return (
-          <mesh
-            key={i}
-            position={[
-              Math.cos(angle) * 1.98,
-              Math.sin(i * 1.7) * 0.7,
-              Math.sin(angle) * 1.98,
-            ]}
-            rotation={[0, angle, 0]}
-          >
-            <boxGeometry args={[0.35, 0.018, 0.018]} />
-            <meshBasicMaterial color="#22d3ee" />
-          </mesh>
-        );
-      })}
-    </group>
+    <mesh>
+      <sphereGeometry args={[2.0, 32, 32]} />
+      <meshStandardMaterial
+        color="#082f49"
+        wireframe
+        roughness={0.8}
+      />
+    </mesh>
   );
 }
 
 function App() {
-  const [selected, setSelected] = useState(stations[0]);
+  const [stations] = useState(STATIONS);
+  const [selectedStation, setSelectedStation] = useState(STATIONS[0]);
   const [depth, setDepth] = useState(50);
-  const [variable, setVariable] = useState("Temperature");
+  const [activeVariable, setActiveVariable] = useState("Temperature");
+  const [activeBasin, setActiveBasin] = useState("ALL");
+
+  // Globe visualization toggles
+  const [isRotating, setIsRotating] = useState(true);
+  const [showClouds, setShowClouds] = useState(true);
+  const [showCurrents, setShowCurrents] = useState(true);
+  const [showAtmosphere, setShowAtmosphere] = useState(true);
+
+  // Orbit controls reference
+  const controlsRef = useRef();
+
+  // Basin selection
+  const handleSelectBasin = useCallback((basin) => {
+    setActiveBasin(basin);
+    if (basin === "ALL") {
+      setSelectedStation(stations[0]);
+    } else {
+      const match = stations.find((s) => s.basin.toLowerCase().includes(basin.toLowerCase()));
+      if (match) {
+        setSelectedStation(match);
+      }
+    }
+  }, [stations]);
+
+  // Reset 3D camera
+  const handleResetCamera = useCallback(() => {
+    if (controlsRef.current) {
+      controlsRef.current.reset();
+    }
+  }, []);
+
+  const activeVarConfig = OCEAN_VARIABLES.find((v) => v.id === activeVariable) || OCEAN_VARIABLES[0];
 
   return (
-    <div className="app">
-      <header>
-        <div>
-          <h1>BLUE VECTOR</h1>
-          <p>Interactive Ocean Intelligence Platform</p>
-        </div>
+    <div className="blue-vector-app">
+      {/* Top Navigation & Status Header */}
+      <Header
+        activeBasin={activeBasin}
+        onSelectBasin={handleSelectBasin}
+      />
 
-        <div className="status">
-          ● SYSTEM ONLINE
-        </div>
-      </header>
+      {/* Main Mission Control Layout */}
+      <main className="main-content">
+        {/* Left Section: 3D Interactive Ocean Globe */}
+        <section className="globe-viewport">
+          <Canvas
+            camera={{ position: [0, 0.4, 5.2], fov: 42 }}
+            gl={{ antialias: true, alpha: false }}
+          >
+            {/* Ambient & Directional Lighting */}
+            <ambientLight intensity={1.5} color="#e0f2fe" />
+            <directionalLight position={[6, 3, 5]} intensity={2.8} color="#ffffff" />
+            <directionalLight position={[-6, -2, -4]} intensity={0.5} color="#0369a1" />
 
-      <main>
-        <section className="globe">
-          <Canvas camera={{ position: [0, 0, 6], fov: 45 }}>
-            <ambientLight intensity={1.2} />
-            <directionalLight position={[5, 5, 5]} intensity={2} />
-
+            {/* Realistic Starfield */}
             <Stars
-              radius={80}
-              depth={50}
-              count={1500}
-              factor={3}
-              saturation={0}
+              radius={100}
+              depth={60}
+              count={2500}
+              factor={4}
+              saturation={0.1}
               fade
+              speed={0.5}
             />
 
-            <Earth onSelect={setSelected} />
+            {/* Earth with photorealistic texture, atmosphere, clouds, and buoys */}
+            <Suspense fallback={<CanvasLoader />}>
+              <EarthGlobe
+                stations={stations}
+                selectedStation={selectedStation}
+                onSelectStation={setSelectedStation}
+                isRotating={isRotating}
+                rotationSpeed={0.0012}
+                showClouds={showClouds}
+                showCurrents={showCurrents}
+                showAtmosphere={showAtmosphere}
+                activeVariable={activeVariable}
+              />
+            </Suspense>
 
+            {/* Smooth 3D Orbit Controls */}
             <OrbitControls
+              ref={controlsRef}
               enablePan={false}
-              minDistance={3.5}
-              maxDistance={8}
+              minDistance={3.2}
+              maxDistance={7.5}
+              rotateSpeed={0.65}
+              dampingFactor={0.06}
+              enableDamping
             />
           </Canvas>
 
-          <div className="globe-label">
-            <span>🌊</span>
-            INDIAN OCEAN
-          </div>
+          {/* Floating HUD over Globe */}
+          <GlobeHUD
+            selectedStation={selectedStation}
+            isRotating={isRotating}
+            onToggleRotate={() => setIsRotating((prev) => !prev)}
+            onResetView={handleResetCamera}
+            showClouds={showClouds}
+            onToggleClouds={() => setShowClouds((prev) => !prev)}
+            showCurrents={showCurrents}
+            onToggleCurrents={() => setShowCurrents((prev) => !prev)}
+            showAtmosphere={showAtmosphere}
+            onToggleAtmosphere={() => setShowAtmosphere((prev) => !prev)}
+            depth={depth}
+            activeVariable={activeVariable}
+            activeVariableConfig={activeVarConfig}
+          />
         </section>
 
-        <aside>
-          <div className="panel">
-            <h2>Ocean Controls</h2>
-
-            <label>VARIABLE</label>
-
-            <div className="buttons">
-              {["Temperature", "Salinity", "Currents"].map((item) => (
-                <button
-                  className={variable === item ? "active" : ""}
-                  onClick={() => setVariable(item)}
-                  key={item}
-                >
-                  {item}
-                </button>
-              ))}
-            </div>
-
-            <label>DEPTH — {depth}m</label>
-
-            <input
-              type="range"
-              min="0"
-              max="500"
-              value={depth}
-              onChange={(e) => setDepth(e.target.value)}
-            />
-          </div>
-
-          <div className="panel station">
-            <div className="station-title">
-              <span>📍</span>
-              <div>
-                <h2>{selected.name}</h2>
-                <small>IN-SITU OBSERVATION</small>
-              </div>
-            </div>
-
-            <div className="stats">
-              <div>
-                <small>TEMPERATURE</small>
-                <strong>{selected.temp}°C</strong>
-              </div>
-
-              <div>
-                <small>SALINITY</small>
-                <strong>{selected.salinity} PSU</strong>
-              </div>
-
-              <div>
-                <small>DEPTH</small>
-                <strong>{selected.depth} m</strong>
-              </div>
-
-              <div>
-                <small>CURRENT</small>
-                <strong>1.24 m/s</strong>
-              </div>
-            </div>
-          </div>
-
-          <div className="panel comparison">
-            <h2>Model vs Observation</h2>
-
-            <div className="compare">
-              <span>Model</span>
-              <b>27.8°C</b>
-            </div>
-
-            <div className="compare">
-              <span>Observed</span>
-              <b>28.4°C</b>
-            </div>
-
-            <div className="difference">
-              +0.6°C difference
-            </div>
-          </div>
-        </aside>
+        {/* Right Section: Ocean Telemetry & Validation Control Panel */}
+        <ControlPanel
+          stations={stations}
+          selectedStation={selectedStation}
+          onSelectStation={setSelectedStation}
+          activeVariable={activeVariable}
+          onSelectVariable={setActiveVariable}
+          depth={depth}
+          onChangeDepth={setDepth}
+        />
       </main>
 
-      <footer>
-        <span>BLUE VECTOR</span>
-        <span>Ocean Data Visualization • SIH 2026 • Prototype</span>
-      </footer>
+      {/* Bottom Telemetry Status Strip */}
+      <Footer
+        selectedStation={selectedStation}
+        depth={depth}
+      />
     </div>
   );
 }
