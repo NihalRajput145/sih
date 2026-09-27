@@ -5,21 +5,25 @@ import {
   Waves,
   Wind,
   Radio,
-  Battery,
-  Wifi,
   ChevronRight,
   TrendingUp,
   Activity,
-  CheckCircle2
+  Compass,
+  Layers,
+  Clock,
+  MapPin,
+  X,
+  Scale
 } from "lucide-react";
 import {
   OCEAN_VARIABLES,
   DEPTH_PRESETS,
+  TIME_STEPS,
   getDepthZone,
-  computeDepthTelemetry
-} from "../data/stations";
+  computeOceanTelemetry
+} from "../data/oceanData";
 
-// Helper for dynamic icons
+// Helper for parameter icons
 function VariableIcon({ name, size = 16, className = "" }) {
   switch (name) {
     case "Thermometer":
@@ -35,14 +39,13 @@ function VariableIcon({ name, size = 16, className = "" }) {
   }
 }
 
-// Mini Sparkline Generator
-function MiniSparkline({ baseValue, color }) {
+// 24-Hour Synthetic Trend Sparkline Generator
+function MiniSparkline({ baseValue, color, unit }) {
   const points = useMemo(() => {
     const pts = [];
     const count = 12;
     for (let i = 0; i < count; i++) {
-      // Natural diurnal variation curve
-      const offset = Math.sin((i / count) * Math.PI * 2) * 0.4 + (Math.sin(i * 1.5) * 0.15);
+      const offset = Math.sin((i / count) * Math.PI * 2) * 0.4 + Math.sin(i * 1.5) * 0.15;
       const val = baseValue + offset;
       pts.push({ x: (i / (count - 1)) * 140, y: 30 - ((val - (baseValue - 0.6)) / 1.2) * 24 });
     }
@@ -57,7 +60,7 @@ function MiniSparkline({ baseValue, color }) {
     <div className="sparkline-wrapper">
       <div className="sparkline-label">
         <TrendingUp size={12} className="text-cyan" />
-        <span>24H DIURNAL TREND</span>
+        <span>24H SAMPLE VARIATION TREND ({unit})</span>
       </div>
       <svg viewBox="0 0 140 36" className="sparkline-svg">
         <defs>
@@ -66,20 +69,8 @@ function MiniSparkline({ baseValue, color }) {
             <stop offset="100%" stopColor={color} stopOpacity="0" />
           </linearGradient>
         </defs>
-        {/* Fill area */}
-        <path
-          d={`${pathD} L 140 36 L 0 36 Z`}
-          fill="url(#sparkGradient)"
-        />
-        {/* Line stroke */}
-        <path
-          d={pathD}
-          fill="none"
-          stroke={color}
-          strokeWidth="2"
-          strokeLinecap="round"
-        />
-        {/* Last point pulse */}
+        <path d={`${pathD} L 140 36 L 0 36 Z`} fill="url(#sparkGradient)" />
+        <path d={pathD} fill="none" stroke={color} strokeWidth="2" strokeLinecap="round" />
         {points.length > 0 && (
           <circle
             cx={points[points.length - 1].x}
@@ -100,51 +91,72 @@ export default function ControlPanel({
   activeVariable,
   onSelectVariable,
   depth,
-  onChangeDepth
+  onChangeDepth,
+  timeStepIndex = 2,
+  isOpen = true,
+  onClose
 }) {
   const depthZone = getDepthZone(depth);
   const activeVarConfig = OCEAN_VARIABLES.find((v) => v.id === activeVariable) || OCEAN_VARIABLES[0];
+  const currentTimeStep = TIME_STEPS[timeStepIndex] || TIME_STEPS[0];
 
-  // Dynamic telemetry calculated based on depth
+  // Dynamic telemetry calculated based on depth and time step
   const telemetry = useMemo(() => {
     if (!selectedStation) return null;
-    return computeDepthTelemetry(selectedStation, depth);
-  }, [selectedStation, depth]);
+    return computeOceanTelemetry(selectedStation, depth, timeStepIndex);
+  }, [selectedStation, depth, timeStepIndex]);
 
-  // Model comparison metrics
-  const modelComparison = useMemo(() => {
-    if (!telemetry || !selectedStation) return { observed: 0, model: 0, diff: 0, accuracy: 98 };
+  // Primary active variable comparison metrics
+  const primaryComparison = useMemo(() => {
+    if (!telemetry || !selectedStation) return { observed: 0, model: 0, diff: 0, absDiff: 0, unit: "°C" };
 
     let observed = telemetry.temp;
     let model = telemetry.modelTemp;
+    let diff = telemetry.diffTemp;
+    let absDiff = telemetry.absDiffTemp;
     let unit = "°C";
 
     if (activeVariable === "Salinity") {
       observed = telemetry.salinity;
       model = telemetry.modelSalinity;
+      diff = telemetry.diffSalinity;
+      absDiff = telemetry.absDiffSalinity;
       unit = "PSU";
     } else if (activeVariable === "Currents") {
       observed = telemetry.current;
       model = telemetry.modelCurrent;
+      diff = telemetry.diffCurrent;
+      absDiff = telemetry.absDiffCurrent;
       unit = "m/s";
     } else if (activeVariable === "Oxygen") {
       observed = telemetry.oxygen;
       model = telemetry.modelOxygen;
+      diff = telemetry.diffOxygen;
+      absDiff = telemetry.absDiffOxygen;
       unit = "mg/L";
     }
 
-    const diff = Number((observed - model).toFixed(2));
-    const absDiff = Math.abs(diff);
-    const accuracy = Math.max(90, (100 - (absDiff / Math.max(observed, 1)) * 100)).toFixed(1);
-
-    return { observed, model, diff, unit, accuracy };
+    return { observed, model, diff, absDiff, unit };
   }, [telemetry, selectedStation, activeVariable]);
 
   if (!selectedStation || !telemetry) return null;
 
   return (
-    <aside className="control-sidebar">
-      {/* 1. Ocean Variables Selector */}
+    <aside className={`control-sidebar ${isOpen ? "open" : "closed"}`}>
+      {/* Mobile Drawer Header with Close Button */}
+      <div className="mobile-drawer-header">
+        <div className="drawer-title">
+          <span className="live-dot" />
+          <span>STATION DATA & MODEL COMPARISON</span>
+        </div>
+        {onClose && (
+          <button className="drawer-close-btn" onClick={onClose} title="Close Panel">
+            <X size={18} />
+          </button>
+        )}
+      </div>
+
+      {/* 1. Ocean Parameter Controls */}
       <section className="panel-card">
         <div className="card-header">
           <div className="card-title-group">
@@ -177,12 +189,12 @@ export default function ControlPanel({
         <p className="param-description">{activeVarConfig.description}</p>
       </section>
 
-      {/* 2. Depth Profile Slider & Zonation */}
+      {/* 2. Depth Control & Vertical Stratification */}
       <section className="panel-card">
         <div className="card-header">
           <div className="card-title-group">
-            <span className="card-tag">VERTICAL STRATIFICATION</span>
-            <h2>Depth Profile</h2>
+            <span className="card-tag">SAMPLE VERTICAL STRATIFICATION</span>
+            <h2>Depth Profile (0–1000m)</h2>
           </div>
           <div
             className="depth-badge"
@@ -197,6 +209,10 @@ export default function ControlPanel({
           <span>{depthZone.name}</span>
           <span className="pressure-readout">• {telemetry.pressure} bar</span>
         </div>
+
+        <p className="depth-sample-note" style={{ fontSize: "10px", color: "#64748b", margin: "-2px 0 8px", lineHeight: "1.4" }}>
+          Interactive vertical profile based on prototype depth stratification (0–1000m sample data).
+        </p>
 
         <div className="slider-wrapper">
           <input
@@ -231,7 +247,7 @@ export default function ControlPanel({
         </div>
       </section>
 
-      {/* 3. In-Situ Station Telemetry Card */}
+      {/* 3. Station Data Panel (In-Situ Telemetry) */}
       <section className="panel-card station-telemetry-card">
         <div className="station-card-top">
           <div className="station-avatar">
@@ -241,52 +257,91 @@ export default function ControlPanel({
             <div className="station-code-row">
               <h3>{selectedStation.code}</h3>
               <span className="station-status-pill">
-                <span className="live-dot" /> LIVE
+                <span className="live-dot" /> PROTOTYPE STATION
               </span>
             </div>
             <p className="station-fullname">{selectedStation.name}</p>
             <div className="station-meta-row">
-              <span>{selectedStation.basin}</span>
+              <span>{selectedStation.region}</span>
               <span>•</span>
               <span>
-                {selectedStation.lat.toFixed(1)}°N, {selectedStation.lon.toFixed(1)}°E
+                {selectedStation.lat.toFixed(2)}° N, {selectedStation.lon.toFixed(2)}° E
               </span>
             </div>
           </div>
         </div>
 
-        {/* Station hardware status metrics */}
+        {/* Inspection metadata */}
         <div className="hardware-metrics">
           <div className="hw-item">
-            <Wifi size={12} className="text-cyan" />
-            <span>Signal: {selectedStation.signal}%</span>
+            <Clock size={12} className="text-cyan" />
+            <span>Time: {currentTimeStep.fullLabel}</span>
           </div>
           <div className="hw-item">
-            <Battery size={12} className="text-emerald" />
-            <span>Battery: {selectedStation.battery}%</span>
+            <Layers size={12} className="text-purple" />
+            <span>Sample Depth: {depth} m</span>
           </div>
           <div className="hw-item">
-            <span className="text-muted">Updated: {selectedStation.lastTransmission}</span>
+            <MapPin size={12} className="text-cyan" />
+            <span>Region: {selectedStation.region}</span>
+          </div>
+        </div>
+
+        {/* Structured Station Data Summary Box (Feature 7) */}
+        <div className="station-core-summary-box">
+          <div className="summary-row">
+            <span className="summary-label">Station:</span>
+            <strong className="summary-value">{selectedStation.code}</strong>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Location:</span>
+            <span className="summary-value">{selectedStation.region} ({selectedStation.lat.toFixed(1)}° N, {selectedStation.lon.toFixed(1)}° E)</span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Selected Depth:</span>
+            <span className="summary-value">{depth} m ({depthZone.name} • Sample)</span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Selected Time:</span>
+            <span className="summary-value">{currentTimeStep.fullLabel} ({currentTimeStep.stepLabel})</span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Temperature:</span>
+            <span className="summary-value highlight-temp">{telemetry.temp} °C</span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Salinity:</span>
+            <span className="summary-value highlight-sal">{telemetry.salinity} PSU</span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Current Speed:</span>
+            <span className="summary-value highlight-current">
+              {telemetry.current} m/s ({selectedStation.currentDirection} @ {selectedStation.currentHeading}°)
+            </span>
+          </div>
+          <div className="summary-row">
+            <span className="summary-label">Dissolved Oxygen:</span>
+            <span className="summary-value">{telemetry.oxygen} mg/L</span>
           </div>
         </div>
 
         {/* 4 Sensor Telemetry Tiles */}
         <div className="telemetry-grid">
-          {/* Tile 1: Primary Selected Parameter */}
-          <div className="telemetry-tile primary-tile">
+          {/* Tile 1: Temperature */}
+          <div className={`telemetry-tile ${activeVariable === "Temperature" ? "primary-tile" : ""}`}>
             <div className="tile-top">
-              <span className="tile-label">{activeVarConfig.label.toUpperCase()}</span>
-              <VariableIcon name={activeVarConfig.icon} size={14} className="text-cyan" />
+              <span className="tile-label">TEMPERATURE</span>
+              <Thermometer size={14} className="text-amber" />
             </div>
             <div className="tile-value">
-              {modelComparison.observed}
-              <small>{modelComparison.unit}</small>
+              {telemetry.temp}
+              <small>°C</small>
             </div>
-            <span className="tile-subtext">AT {depth}m DEPTH</span>
+            <span className="tile-subtext">SAMPLE AT {depth}m • {currentTimeStep.label}</span>
           </div>
 
           {/* Tile 2: Salinity */}
-          <div className="telemetry-tile">
+          <div className={`telemetry-tile ${activeVariable === "Salinity" ? "primary-tile" : ""}`}>
             <div className="tile-top">
               <span className="tile-label">SALINITY</span>
               <Droplets size={14} className="text-cyan" />
@@ -295,11 +350,11 @@ export default function ControlPanel({
               {telemetry.salinity}
               <small>PSU</small>
             </div>
-            <span className="tile-subtext">CONDUCTIVITY</span>
+            <span className="tile-subtext">HALOCLINE</span>
           </div>
 
-          {/* Tile 3: Current Velocity */}
-          <div className="telemetry-tile">
+          {/* Tile 3: Current Velocity & Direction */}
+          <div className={`telemetry-tile ${activeVariable === "Currents" ? "primary-tile" : ""}`}>
             <div className="tile-top">
               <span className="tile-label">CURRENT</span>
               <Waves size={14} className="text-emerald" />
@@ -308,11 +363,14 @@ export default function ControlPanel({
               {telemetry.current}
               <small>m/s</small>
             </div>
-            <span className="tile-subtext">DRIFT VECTOR</span>
+            <span className="tile-subtext">
+              <Compass size={10} style={{ display: "inline", verticalAlign: "middle", marginRight: 2 }} />
+              {selectedStation.currentDirection} ({selectedStation.currentHeading}°)
+            </span>
           </div>
 
           {/* Tile 4: Dissolved Oxygen */}
-          <div className="telemetry-tile">
+          <div className={`telemetry-tile ${activeVariable === "Oxygen" ? "primary-tile" : ""}`}>
             <div className="tile-top">
               <span className="tile-label">DISSOLVED O₂</span>
               <Wind size={14} className="text-purple" />
@@ -321,80 +379,140 @@ export default function ControlPanel({
               {telemetry.oxygen}
               <small>mg/L</small>
             </div>
-            <span className="tile-subtext">OMZ SENSOR</span>
+            <span className="tile-subtext">WATER COLUMN</span>
           </div>
         </div>
 
-        {/* 24h Diurnal Trend Sparkline */}
+        {/* 24h Sample Variation Sparkline */}
         <MiniSparkline
-          baseValue={modelComparison.observed}
-          unit={modelComparison.unit}
+          baseValue={primaryComparison.observed}
+          unit={primaryComparison.unit}
           color={activeVarConfig.color}
         />
       </section>
 
-      {/* 4. Model vs Observation Validation Card */}
+      {/* 4. Model vs Observation Comparison Panel (FEATURE 8 — HIGHEST PRIORITY) */}
       <section className="panel-card model-validation-card">
         <div className="card-header">
           <div className="card-title-group">
-            <span className="card-tag">VALIDATION ENGINE</span>
-            <h2>Model vs Observation</h2>
+            <span className="card-tag">DATA COMPARISON</span>
+            <h2>Model vs Observation Comparison</h2>
           </div>
-          <span className="qc-check-pill">
-            <CheckCircle2 size={13} className="text-emerald" />
-            <span>ROMS VALIDATED</span>
+          <span className="sample-badge">
+            <Scale size={13} className="text-cyan" />
+            <span>SAMPLE DATA</span>
           </span>
         </div>
 
+        <p className="val-note">
+          Comparison between prototype numerical model outputs and prototype observation values at {depth}m sample depth and {currentTimeStep.fullLabel}.
+        </p>
+
+        {/* Focused Variable Dual Comparison Display */}
         <div className="comparison-dual-row">
           <div className="comp-col">
-            <span className="comp-col-label">NUMERICAL MODEL</span>
+            <span className="comp-col-label">MODEL</span>
             <div className="comp-col-val">
-              {modelComparison.model} <small>{modelComparison.unit}</small>
+              {primaryComparison.model} <small>{primaryComparison.unit}</small>
             </div>
-            <span className="comp-sub">ROMS / HYCOM Forecast</span>
+            <span className="comp-sub">Prototype Model Value</span>
           </div>
 
           <div className="comp-divider-vs">VS</div>
 
           <div className="comp-col">
-            <span className="comp-col-label">IN-SITU OBSERVATION</span>
+            <span className="comp-col-label">OBSERVATION</span>
             <div className="comp-col-val text-cyan">
-              {modelComparison.observed} <small>{modelComparison.unit}</small>
+              {primaryComparison.observed} <small>{primaryComparison.unit}</small>
             </div>
-            <span className="comp-sub">Moored Array Sensor</span>
+            <span className="comp-sub">Prototype Observation Value</span>
           </div>
         </div>
 
+        {/* Difference Summary */}
         <div className="difference-banner">
           <div className="diff-header">
-            <span>DIVERGENCE DELTA (Δ)</span>
+            <span>Difference (Δ)</span>
             <span className="diff-val">
-              {modelComparison.diff > 0 ? `+${modelComparison.diff}` : modelComparison.diff} {modelComparison.unit}
+              {primaryComparison.diff > 0 ? `+${primaryComparison.diff}` : primaryComparison.diff} {primaryComparison.unit}
             </span>
           </div>
           <div className="diff-meter">
             <div
               className="diff-fill"
               style={{
-                width: `${Math.min(100, Math.abs(modelComparison.diff) * 40)}%`,
-                background: Math.abs(modelComparison.diff) < 0.8 ? "#10b981" : "#f59e0b"
+                width: `${Math.min(100, primaryComparison.absDiff * 45)}%`,
+                background: "#06b6d4"
               }}
             />
           </div>
           <div className="diff-footer">
-            <span>Confidence: {modelComparison.accuracy}%</span>
-            <span>Bias: {(modelComparison.diff / Math.max(1, modelComparison.observed) * 100).toFixed(1)}%</span>
+            <span>Absolute Difference: {primaryComparison.absDiff} {primaryComparison.unit}</span>
+            <span>Timeline Step: {currentTimeStep.label} UTC</span>
           </div>
+        </div>
+
+        {/* Comprehensive Multi-Parameter Comparison Table */}
+        <div className="multi-param-table-wrapper">
+          <div className="table-caption">ALL PARAMETERS COMPARISON TABLE</div>
+          <table className="validation-table">
+            <thead>
+              <tr>
+                <th>Parameter</th>
+                <th>Model</th>
+                <th>Observation</th>
+                <th>Difference (Δ)</th>
+                <th>Absolute Difference</th>
+              </tr>
+            </thead>
+            <tbody>
+              <tr>
+                <td><strong>Sea Temperature</strong> (°C)</td>
+                <td>{telemetry.modelTemp}</td>
+                <td>{telemetry.temp}</td>
+                <td className="delta-neutral">
+                  {telemetry.diffTemp > 0 ? `+${telemetry.diffTemp}` : telemetry.diffTemp}
+                </td>
+                <td>{telemetry.absDiffTemp}</td>
+              </tr>
+              <tr>
+                <td><strong>Salinity</strong> (PSU)</td>
+                <td>{telemetry.modelSalinity}</td>
+                <td>{telemetry.salinity}</td>
+                <td className="delta-neutral">
+                  {telemetry.diffSalinity > 0 ? `+${telemetry.diffSalinity}` : telemetry.diffSalinity}
+                </td>
+                <td>{telemetry.absDiffSalinity}</td>
+              </tr>
+              <tr>
+                <td><strong>Current Velocity</strong> (m/s)</td>
+                <td>{telemetry.modelCurrent}</td>
+                <td>{telemetry.current}</td>
+                <td className="delta-neutral">
+                  {telemetry.diffCurrent > 0 ? `+${telemetry.diffCurrent}` : telemetry.diffCurrent}
+                </td>
+                <td>{telemetry.absDiffCurrent}</td>
+              </tr>
+              <tr>
+                <td><strong>Dissolved Oxygen</strong> (mg/L)</td>
+                <td>{telemetry.modelOxygen}</td>
+                <td>{telemetry.oxygen}</td>
+                <td className="delta-neutral">
+                  {telemetry.diffOxygen > 0 ? `+${telemetry.diffOxygen}` : telemetry.diffOxygen}
+                </td>
+                <td>{telemetry.absDiffOxygen}</td>
+              </tr>
+            </tbody>
+          </table>
         </div>
       </section>
 
-      {/* 5. Station Fleet Quick Switcher */}
+      {/* 5. Observation Fleet Station Switcher */}
       <section className="panel-card fleet-card">
         <div className="card-header">
           <div className="card-title-group">
-            <span className="card-tag">TELEMETRY NETWORK</span>
-            <h2>Active Buoy Array ({stations.length})</h2>
+            <span className="card-tag">SAMPLE STATIONS</span>
+            <h2>Sample Station Fleet ({stations.length})</h2>
           </div>
         </div>
 
@@ -408,16 +526,16 @@ export default function ControlPanel({
                 onClick={() => onSelectStation(st)}
               >
                 <div className="station-row-left">
-                  <span className={`status-indicator ${st.qcStatus === "PASSED" ? "status-online" : "status-warning"}`} />
+                  <span className="status-indicator status-station" />
                   <div>
                     <strong>{st.code}</strong>
-                    <small>{st.basin}</small>
+                    <small>{st.name}</small>
                   </div>
                 </div>
 
                 <div className="station-row-right">
                   <span className="station-val">
-                    {activeVariable === "Temperature" && `${st.temp}°C`}
+                    {activeVariable === "Temperature" && `${st.temp} °C`}
                     {activeVariable === "Salinity" && `${st.salinity} PSU`}
                     {activeVariable === "Currents" && `${st.current} m/s`}
                     {activeVariable === "Oxygen" && `${st.oxygen} mg/L`}

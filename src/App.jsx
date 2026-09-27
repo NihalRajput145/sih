@@ -5,8 +5,9 @@ import EarthGlobe from "./components/EarthGlobe";
 import Header from "./components/Header";
 import ControlPanel from "./components/ControlPanel";
 import GlobeHUD from "./components/GlobeHUD";
+import TimelineControl from "./components/TimelineControl";
 import Footer from "./components/Footer";
-import { STATIONS, OCEAN_VARIABLES } from "./data/stations";
+import { STATIONS, OCEAN_VARIABLES } from "./data/oceanData";
 import "./App.css";
 
 // 3D Canvas Fallback Loader
@@ -27,8 +28,12 @@ function App() {
   const [stations] = useState(STATIONS);
   const [selectedStation, setSelectedStation] = useState(STATIONS[0]);
   const [depth, setDepth] = useState(50);
+  const [timeStepIndex, setTimeStepIndex] = useState(2); // Default to 12:00 UTC
   const [activeVariable, setActiveVariable] = useState("Temperature");
   const [activeBasin, setActiveBasin] = useState("ALL");
+
+  // Mobile / responsive sidebar toggle
+  const [isSidebarOpen, setIsSidebarOpen] = useState(true);
 
   // Globe visualization toggles
   const [isRotating, setIsRotating] = useState(true);
@@ -67,6 +72,8 @@ function App() {
       <Header
         activeBasin={activeBasin}
         onSelectBasin={handleSelectBasin}
+        isSidebarOpen={isSidebarOpen}
+        onToggleSidebar={() => setIsSidebarOpen((prev) => !prev)}
       />
 
       {/* Main Mission Control Layout */}
@@ -93,18 +100,24 @@ function App() {
               speed={0.5}
             />
 
-            {/* Earth with photorealistic texture, atmosphere, clouds, and buoys */}
+            {/* 3D Earth Globe with in-situ stations, animated currents, depth probes */}
             <Suspense fallback={<CanvasLoader />}>
               <EarthGlobe
                 stations={stations}
                 selectedStation={selectedStation}
-                onSelectStation={setSelectedStation}
+                onSelectStation={(st) => {
+                  setSelectedStation(st);
+                  // Ensure sidebar is open to show station data when user clicks a buoy
+                  setIsSidebarOpen(true);
+                }}
                 isRotating={isRotating}
                 rotationSpeed={0.0012}
                 showClouds={showClouds}
                 showCurrents={showCurrents}
                 showAtmosphere={showAtmosphere}
                 activeVariable={activeVariable}
+                depth={depth}
+                timeStepIndex={timeStepIndex}
               />
             </Suspense>
 
@@ -133,12 +146,18 @@ function App() {
             showAtmosphere={showAtmosphere}
             onToggleAtmosphere={() => setShowAtmosphere((prev) => !prev)}
             depth={depth}
-            activeVariable={activeVariable}
+            timeStepIndex={timeStepIndex}
             activeVariableConfig={activeVarConfig}
+          />
+
+          {/* Bottom Floating 24-Hour Prototype Timeline Scrubber */}
+          <TimelineControl
+            timeStepIndex={timeStepIndex}
+            onSelectTimeStep={setTimeStepIndex}
           />
         </section>
 
-        {/* Right Section: Ocean Telemetry & Validation Control Panel */}
+        {/* Right Section: Ocean Telemetry & Model Comparison Control Panel */}
         <ControlPanel
           stations={stations}
           selectedStation={selectedStation}
@@ -147,6 +166,9 @@ function App() {
           onSelectVariable={setActiveVariable}
           depth={depth}
           onChangeDepth={setDepth}
+          timeStepIndex={timeStepIndex}
+          isOpen={isSidebarOpen}
+          onClose={() => setIsSidebarOpen(false)}
         />
       </main>
 
@@ -154,6 +176,7 @@ function App() {
       <Footer
         selectedStation={selectedStation}
         depth={depth}
+        timeStepIndex={timeStepIndex}
       />
     </div>
   );

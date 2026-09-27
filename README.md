@@ -7,7 +7,7 @@
 [![Vite](https://img.shields.io/badge/Vite-8.2-646cff.svg?style=for-the-badge&logo=vite)](https://vitejs.dev/)
 [![License: MIT](https://img.shields.io/badge/License-MIT-green.svg?style=for-the-badge)](LICENSE)
 
-> **BLUE VECTOR** is an interactive 3D ocean intelligence platform designed for the **Smart India Hackathon (SIH 2026)**. It provides real-time visualization of oceanographic data, in-situ moored buoy telemetry (NIOT/INCOIS OMNI & RAMA arrays), autonomous Argo profiling floats, and numerical hydrodynamic model validation (ROMS / HYCOM) across the Indian Ocean basin.
+> **BLUE VECTOR** is an interactive 3D ocean visualization prototype designed for the **Smart India Hackathon (SIH 2026)**. It provides interactive visualization of simulated oceanographic data, in-situ observation station telemetry (prototype sample array), and numerical model output vs. observation comparison across the Indian Ocean basin.
 
 <p align="center">
   <img src="./img.png" alt="BLUE VECTOR — Interactive Ocean Intelligence Platform" width="100%" />
@@ -18,57 +18,63 @@
 ## 🌟 Key Features
 
 ### 1. 🌍 Photorealistic 3D Earth Globe (Continents, Oceans & Relief)
-- **High-Resolution 2K Day Texture (`earth_atmos_2048.jpg`)**: Replaces plain monochrome water spheres with realistic continents, shorelines, topography, and ocean bathymetry.
+- **High-Resolution 2K Day Texture (`earth_atmos_2048.jpg`)**: Realistic continents, shorelines, topography, and ocean bathymetry.
 - **Surface Bump & Normal Relief (`earth_normal_2048.jpg`)**: 3D elevation detailing for continental shelves and mountain ridges.
 - **Ocean Specular Mask (`earth_specular_2048.jpg`)**: Realistic water glint and sunlight reflection where oceans reflect dynamic directional lighting while continents remain matte.
 - **Dynamic Cloud Layer (`earth_clouds_1024.png`)**: Parallax-rotating cloud sphere rendered above the surface.
 - **Dual-Atmosphere Ionospheric Halo**: Glowing atmospheric rim and Fresnel back-side lighting in vivid cyan/azure.
 
-### 2. 📍 In-Situ Oceanographic Telemetry Array
-- Realistic 3D buoy beacons mapped with millimeter precision onto spherical coordinates ($lat, lon \rightarrow x, y, z$).
-- Real-time animated radar sonar rings pulsing on the sea surface.
-- Interactive 3D HUD tags anchored above each buoy indicating station code, basin, and active physical measurement.
-- Real-world station network:
-  - **`OMNI-AD01`** — Arabian Sea Central Array (Deep Basin Mooring)
-  - **`RAMA-BO02`** — Equatorial Monsoon Buoy (RAMA Array / Southern Indian Ocean)
-  - **`INCOIS-BD08`** — Head Bay of Bengal Observatory (Riverine Runoff Zone)
-  - **`ARGO-EQ04`** — Equatorial Jet Profiler (Autonomous Argo Float)
-  - **`MET-LAK05`** — Lakshadweep Basin Buoy (NIOT Coastal/Met-Ocean)
-  - **`ANDAMAN-S06`** — Andaman Sea Deep Station (Internal Wave Zone)
+### 2. 📍 In-Situ Oceanographic Telemetry Array (Prototype Sample Data)
+- 3D buoy markers mapped onto spherical coordinates ($lat, lon \rightarrow x, y, z$).
+- Animated sonar rings pulsing on the sea surface.
+- Interactive 3D HUD tags anchored above each buoy indicating station code, basin, sample depth, and active physical measurement.
+- Neutral prototype station network:
+  - **`BV-001`** — Arabian Sea Central Station
+  - **`BV-002`** — Equatorial Indian Ocean Station
+  - **`BV-003`** — Bay of Bengal Northern Station
+  - **`BV-004`** — Central Indian Ocean Basin Station
+  - **`BV-005`** — Lakshadweep Sea Station
+  - **`BV-006`** — Andaman Sea Station
+  - **`BV-007`** — Southwest Indian Ocean Station
 
-### 3. 🌊 Indian Ocean Geostrophic Circulation Vectors
-- Dynamic 3D streamlines tracing real-world Indian Ocean current systems:
-  - **Somali Current Jet** (Western Boundary Current)
-  - **Southwest Monsoon Current**
-  - **East India Coastal Current (EICC)**
-  - **West India Coastal Current (WICC)**
-  - **South Equatorial Current**
-  - **Bay of Bengal Cyclonic Gyre**
+### 3. 🌊 Smooth Animated Current Visualization
+- Streamlines tracing simulated Indian Ocean current paths:
+  - Somali Current
+  - Southwest Monsoon Current
+  - East India Coastal Current
+  - West India Coastal Current
+  - South Equatorial Current
+  - Bay of Bengal Flow Path
+  - Arabian Sea Flow Path
 
-### 4. 🎚️ Vertical Stratification & Physical Depth Profiler
-- Continuous depth slider ranging from **0m (Surface)** to **1000m+ (Bathypelagic Abyss)** with quick depth presets:
+### 4. 🎚️ Vertical Stratification & Depth Profile (0–1000m Sample Data)
+- Continuous depth slider ranging from **0m (Surface)** to **1000m (Deep)** with quick depth presets:
   - `Surface (0m)`
   - `Subsurface (50m)`
   - `Thermocline (150m)`
-  - `Deep (500m)`
-- Physical equations for ocean vertical profiles:
-  - **Thermocline Exponential Decay**: Thermal stratification dropping from surface warm layer (~29°C) to cold deep water (~3.8°C).
-  - **Halocline Profile**: Near-surface salinity variability (Bay of Bengal freshwater dilution vs. Arabian Sea high evaporation) equilibrating at depth.
-  - **Geostrophic Velocity Attenuation**: Upper surface wind-driven currents tapering into deep circulation.
-  - **Oxygen Minimum Zone (OMZ)**: Simulates the characteristic Northern Indian Ocean intermediate-depth oxygen depletion layer (200m–700m).
-  - **Hydrostatic Pressure**: Continuous bar/atmosphere calculation with depth.
+  - `Intermediate (500m)`
+  - `Deep (1000m)`
+- Synthetic ocean vertical profiles for prototype demonstration:
+  - **Thermocline Exponential Profile**: Simulated thermal stratification from surface warm layer to deep water.
+  - **Halocline Profile**: Simulated salinity variability across depth.
+  - **Current Velocity Attenuation**: Attenuation of flow velocity with depth.
+  - **Oxygen Profile**: Intermediate-depth oxygen minimum layer approximation.
+  - **Hydrostatic Pressure**: Calculated bar pressure with depth.
 
-### 5. ⚖️ Numerical Model vs. In-Situ Validation Engine
-- Real-time comparison between numerical forecast models (**INCOIS ROMS / HYCOM**) and in-situ buoy sensor observations.
-- Computes **Divergence Delta ($\Delta$)**, sensor bias percentage, and correlation confidence score.
-- Dynamic divergence meter alert flag (Green = Validated $\le 0.8$, Amber = Divergence Detected $> 0.8$).
-- INCOIS Level-3 Realtime Quality Control (QC) status tags.
+### 5. ⚖️ Model vs Observation Comparison
+- Direct comparison between prototype numerical model outputs and prototype observation values.
+- Metrics displayed:
+  - **Model**
+  - **Observation**
+  - **Difference (Δ)**
+  - **Absolute Difference**
+- Multi-parameter comparison table across Temperature, Salinity, Current Velocity, and Dissolved Oxygen.
 
-### 6. 🎛️ Mission Control HUD & Fleet Management
-- **Basin Quick Switcher**: Jump instantly between *Arabian Sea*, *Bay of Bengal*, *Equatorial Array*, and *Full Indian Ocean*.
-- **Globe Controls**: Auto-rotation toggle (Play/Pause), camera reset, and layer overlays toggle (Clouds, Atmosphere, Current Vectors).
-- **Fleet Switcher**: Sidebar directory displaying all stations, connection health, signal %, battery levels, and live readings.
-- **Telemetry Clock**: Monospace live UTC time ticker.
+### 6. 🎛️ Mission Control HUD & 24-Hour Prototype Timeline
+- **Basin Quick Switcher**: Jump between *Arabian Sea*, *Bay of Bengal*, *Equatorial Array*, and *Indian Ocean*.
+- **Globe Controls**: Auto-rotation toggle (Play/Pause), camera reset, and layer overlays toggle (Clouds, Atmosphere, Current Streamlines).
+- **24-Hour Prototype Timeline**: Scrubber and playback loop across 5 discrete prototype time steps (00:00 to 24:00 UTC).
+- **Fleet Switcher**: Sidebar directory displaying sample stations, coordinates, region, depth, and prototype time.
 
 ---
 
@@ -138,7 +144,7 @@ blue-vector/
 │   ├── components/
 │   │   ├── EarthGlobe.jsx            # 3D textured Earth, clouds, atmosphere, buoys, current paths
 │   │   ├── Header.jsx                # Mission branding, basin selector, UTC clock, system status
-│   │   ├── ControlPanel.jsx          # Ocean variable picker, depth profiler, validation engine
+│   │   ├── ControlPanel.jsx          # Ocean variable picker, depth profiler, model vs observation comparison
 │   │   ├── GlobeHUD.jsx              # Floating 3D HUD controls, layer toggles, legend scale
 │   │   └── Footer.jsx                # Telemetry attribution, coordinates, WebGL metadata
 │   ├── data/
@@ -154,19 +160,19 @@ blue-vector/
 
 ---
 
-## 🔬 Scientific Data & Methodology
+## 🔬 Scientific Context & Synthetic Dataset
 
-The parameters and coordinates within Blue Vector are modeled after operational oceanographic monitoring networks in the Indian Ocean:
+The parameters and sample coordinate regions within Blue Vector are inspired by operational oceanographic monitoring networks in the Indian Ocean:
 
 1. **INCOIS (Indian National Centre for Ocean Information Services)**:
-   - Moored Buoy Network (OMNI) in the Arabian Sea & Bay of Bengal.
-   - Coastal and deep-sea ocean state forecasting (ROMS model).
+   - Moored Buoy Networks in the Arabian Sea & Bay of Bengal.
+   - Coastal and deep-sea ocean state numerical modeling.
 2. **NIOT (National Institute of Ocean Technology)**:
-   - Moored data buoy development and marine sensor payloads.
+   - Marine observation sensor payloads.
 3. **RAMA (Research Moored Array for African-Asian-Australian Monsoon Analysis and Prediction)**:
-   - Tropical Indian Ocean climate and monsoon interaction buoys.
+   - Tropical Indian Ocean climate and monsoon interaction stations.
 4. **International Argo Program**:
-   - Upper ocean autonomous profiling floats (temperature, salinity, pressure profiles to 2000m).
+   - Upper ocean profiling floats (temperature, salinity, pressure profiles).
 
 ---
 

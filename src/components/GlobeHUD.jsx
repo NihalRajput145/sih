@@ -1,6 +1,6 @@
 import { useState } from "react";
-import { Play, Pause, RotateCcw, Layers, Eye, EyeOff, MapPin, Gauge } from "lucide-react";
-import { getDepthZone } from "../data/stations";
+import { Play, Pause, RotateCcw, Layers, Eye, EyeOff, MapPin, Gauge, Clock } from "lucide-react";
+import { getDepthZone, TIME_STEPS } from "../data/oceanData";
 
 export default function GlobeHUD({
   selectedStation,
@@ -14,10 +14,12 @@ export default function GlobeHUD({
   showAtmosphere,
   onToggleAtmosphere,
   depth,
+  timeStepIndex = 2,
   activeVariableConfig
 }) {
   const [showLayerMenu, setShowLayerMenu] = useState(false);
   const depthZone = getDepthZone(depth);
+  const currentStep = TIME_STEPS[timeStepIndex] || TIME_STEPS[0];
 
   const formatCoord = (val, isLat) => {
     const dir = isLat ? (val >= 0 ? "N" : "S") : (val >= 0 ? "E" : "W");
@@ -31,9 +33,9 @@ export default function GlobeHUD({
         <div className="hud-panel basin-card">
           <div className="hud-pill">
             <span className="live-dot" />
-            <span>GEOSTATIONARY TRACKER</span>
+            <span>INDIAN OCEAN REGION</span>
           </div>
-          <h3>{selectedStation ? selectedStation.basin.toUpperCase() : "INDIAN OCEAN BASIN"}</h3>
+          <h3>{selectedStation ? (selectedStation.region || selectedStation.basin).toUpperCase() : "INDIAN OCEAN BASIN"}</h3>
           <div className="coords-display">
             <MapPin size={13} className="text-cyan" />
             <span>
@@ -42,13 +44,16 @@ export default function GlobeHUD({
                 : "12.00° N, 78.00° E"}
             </span>
           </div>
+          <div className="hud-station-tag">
+            <span>Station: <strong>{selectedStation ? `${selectedStation.code} • ${selectedStation.name}` : "None"}</strong></span>
+          </div>
         </div>
       </div>
 
       {/* Top Right: Globe Controls & Layer Toggles */}
       <div className="hud-top-right">
         <div className="hud-toolbar">
-          {/* Play/Pause Rotation */}
+          {/* Rotate / Pause */}
           <button
             className={`hud-btn ${isRotating ? "active" : ""}`}
             onClick={onToggleRotate}
@@ -73,7 +78,7 @@ export default function GlobeHUD({
             <button
               className={`hud-btn ${showLayerMenu ? "active" : ""}`}
               onClick={() => setShowLayerMenu(!showLayerMenu)}
-              title="Toggle Globe Layers"
+              title="Toggle Globe Overlays"
             >
               <Layers size={15} />
               <span>LAYERS</span>
@@ -81,14 +86,14 @@ export default function GlobeHUD({
 
             {showLayerMenu && (
               <div className="layer-dropdown">
-                <div className="dropdown-header">GLOBE OVERLAYS</div>
-                
+                <div className="dropdown-header">3D GLOBE OVERLAYS</div>
+
                 <button
                   className="dropdown-item"
                   onClick={onToggleClouds}
                 >
                   {showClouds ? <Eye size={13} className="text-cyan" /> : <EyeOff size={13} />}
-                  <span>Atmospheric Clouds</span>
+                  <span>Cloud Cover</span>
                 </button>
 
                 <button
@@ -96,7 +101,7 @@ export default function GlobeHUD({
                   onClick={onToggleCurrents}
                 >
                   {showCurrents ? <Eye size={13} className="text-cyan" /> : <EyeOff size={13} />}
-                  <span>Ocean Currents</span>
+                  <span>Animated Current Streamlines & Vectors</span>
                 </button>
 
                 <button
@@ -104,7 +109,7 @@ export default function GlobeHUD({
                   onClick={onToggleAtmosphere}
                 >
                   {showAtmosphere ? <Eye size={13} className="text-cyan" /> : <EyeOff size={13} />}
-                  <span>Atmospheric Halo</span>
+                  <span>Atmospheric Glow</span>
                 </button>
               </div>
             )}
@@ -118,10 +123,10 @@ export default function GlobeHUD({
           <div className="legend-header">
             <div className="legend-title">
               <Gauge size={13} className="text-cyan" />
-              <span>{activeVariableConfig.label.toUpperCase()} SCALE</span>
+              <span>{activeVariableConfig.label.toUpperCase()}</span>
             </div>
             <span className="depth-zone-badge" style={{ borderColor: depthZone.color, color: depthZone.color }}>
-              {depthZone.code} • {depth}m
+              {depthZone.code} • Sample {depth}m
             </span>
           </div>
 
@@ -134,8 +139,14 @@ export default function GlobeHUD({
             <span className="legend-tick">{activeVariableConfig.max} {activeVariableConfig.unit}</span>
           </div>
 
-          <div className="legend-desc">
-            {depthZone.name}
+          <div className="legend-footer-row">
+            <div className="legend-desc">
+              {depthZone.name}
+            </div>
+            <div className="legend-time-badge">
+              <Clock size={11} className="text-cyan" />
+              <span>{currentStep.label} UTC</span>
+            </div>
           </div>
         </div>
       </div>
@@ -144,7 +155,7 @@ export default function GlobeHUD({
       <div className="hud-bottom-center">
         <div className="interaction-tip">
           <span className="tip-dot" />
-          <span>DRAG TO ROTATE • SCROLL TO ZOOM • CLICK BUOY TO INSPECT</span>
+          <span>DRAG TO ROTATE • SCROLL TO ZOOM • CLICK BUOY TO SELECT</span>
         </div>
       </div>
     </div>
